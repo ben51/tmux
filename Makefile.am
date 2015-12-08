@@ -59,6 +59,11 @@ if IS_AIX
 DEFS += -D_LINUX_SOURCE_COMPAT=1
 endif
 
+# Set -lkvm for FreeBSD
+if IS_FREEBSD
+LDFLAGS += -lkvm
+endif
+
 # List of sources.
 dist_tmux_SOURCES = \
 	alerts.c \

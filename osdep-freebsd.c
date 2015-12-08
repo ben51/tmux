@@ -25,11 +25,15 @@
 #include <err.h>
 #include <errno.h>
 #include <event.h>
+#include <fcntl.h>
+#include <kvm.h>
+#include <limits.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <libutil.h>
+#include <paths.h>
 
 struct kinfo_proc	*cmp_procs(struct kinfo_proc *, struct kinfo_proc *);
 char			*osdep_get_name(int, char *);
@@ -86,7 +90,8 @@ osdep_get_name(int fd, char *tty)
 	size_t		 len;
 	struct kinfo_proc *buf, *newbuf, *bestp;
 	u_int		 i;
-	char		*name;
+	char		*name, err[_POSIX2_LINE_MAX], **argv;
+	kvm_t   *kd;
 
 	buf = NULL;
 
@@ -121,8 +126,20 @@ retry:
 	}
 
 	name = NULL;
-	if (bestp != NULL)
+	if (bestp != NULL) {
 		name = strdup(bestp->ki_comm);
+		if (strcmp(name, "ssh") == 0) {
+			kd = kvm_openfiles(NULL, _PATH_DEVNULL, NULL, O_RDONLY, err);
+			if (kd != NULL) {
+				argv = kvm_getargv(kd, bestp, 0);
+				if (argv != NULL) {
+					for (i = 0; argv[i] != NULL; i++);
+					name = strdup(argv[i-1]);
+				}
+				kvm_close(kd);
+			}
+		}
+	}
 
 	free(buf);
 	return (name);
